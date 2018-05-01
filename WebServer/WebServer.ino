@@ -19,23 +19,21 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Ethernet.h>
+#include "WebConstants.h"
+
+// Ethernetアクセス用
+EthernetServer server(80);				// ポート80番(HTTP)
 
 // SDカードアクセス用
 File myFile;							
 const int maxlen = 64;					// 一度にファイルから読むbyte数
 char buffer[maxlen+1];					// サイズは終端文字を残すために1バイト余分に取る
 
-// Ethernetアクセス用
-byte mac[] = {
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00	// EthernetシールドのMACアドレス(→TBD)
-};
-IPAddress ip(0, 0, 0, 0);				// EthernetシールドのローカルIPアドレス(→TBD)
-EthernetServer server(80);				// ポート80番(HTTP)
-
 // DDNSサービスアクセス用
-unsigned long lastCheckedTime = 0;				// 前回確認時
-const unsigned long ddnsInterval = 360000;	    // DDNS接続周期(1時間)
-void ddns(void);								// DDNS確認リクエスト送信
+unsigned long ddnsCheckedTime = 0;					// DDNS前回確認時
+unsigned long ddnsCheckTimer = 0;					// DDNS確認タイマー
+const unsigned long ddnsInterval = (1000*60*60);	// DDNS接続周期(1時間)
+void ddns(void);									// DDNS確認リクエスト送信
 
 
 void setup() {
@@ -45,10 +43,10 @@ void setup() {
 	; // wait for serial port to connect. Needed for Leonardo only
   }
 
-  //Give time to initilize:
+  //初期化のための待ち時間:
   delay(1000);
 
-  Serial.print("Initializing SD card...");
+  Serial.print("SDカード初期化...");
   if (!SD.begin(4)) {
 	  Serial.println("failed!");
 	  return;
@@ -59,21 +57,19 @@ void setup() {
   // start the Ethernet connection and the server:
   Ethernet.begin(mac, ip);
   server.begin();
-  //Serial.print("server is at ");
+  // サーバーのローカルIP
   Serial.println(Ethernet.localIP());
 }
 
 
 void loop() {
-  // listen for incoming clients
+  // 受信待受
   EthernetClient client = server.available();
   if (client) {
-	//Serial.println("new client");
-
 	while (client.connected()) {
 	  if (client.available()) {
 		char c = client.read();
-		//Serial.write(c);	// リクエストの内容
+		Serial.write(c);	// リクエストの内容
 
 		// リクエストの終端(改行文字)
 		if (c == '\n') {
@@ -91,8 +87,6 @@ void loop() {
 		  // 読み出しモードで開く:
 		  myFile = SD.open("Index.htm");	  // ファイル名は8.3形式
 		  if (myFile) {
-			  //Serial.println("Index.htm:");
-
 			  // ファイルから読み出すデータが無くなるまで読む:
 			  while (myFile.available()) {				  				  
 				  memset(buffer, 0x00, sizeof(buffer));
@@ -109,10 +103,8 @@ void loop() {
 			  myFile.close();
 		  }
 		  else {
-
-			  // ファイルオープンに失敗したことを通知:
-			  //Serial.println("error opening Index.htm");
-
+			  // ファイルオープンに失敗
+			  Serial.println("error opening Index.htm");
 		  }
 
 
@@ -129,19 +121,14 @@ void loop() {
 
 
   // DDNS確認周期
-  if ( (abs(millis() - lastCheckedTime) > ddnsInterval) )
+  ddnsCheckTimer = millis() - ddnsCheckedTime;
+  if ( (abs(ddnsCheckTimer) > ddnsInterval) )
   {
 	  Serial.println();
-	  lastCheckedTime = millis();
+	  ddnsCheckedTime = millis();
 	  ddns();
   }
-  else
-  {
-	  Serial.print(ddnsInterval);
-	  Serial.print(" ");
-	  Serial.print(abs(millis() - lastCheckedTime));
-	  Serial.println();
-  }
+
 
 }
 
@@ -159,18 +146,27 @@ void ddns() {
 	//Give time to initilize:
 	delay(1000);
 
-	if (ddnsclient.connect("dynupdate.no-ip.com", 80)) {
+	if (ddnsclient.connect(ddnsHostName.c_str(), 80)) {
 		//Serial.println("Connected to noip");
+		String strbuf;
 
-		ddnsclient.println("GET /nic/update?hostname=zkure.ddns.net HTTP/1.0");
-		ddnsclient.println("Host: dynupdate.no-ip.com");
-		ddnsclient.println("Authorization: Basic bWFpbEBleGFtcGxlLmNvbTpwYXNzd29yZA==");	//BASE64に変換 mail@example.com:password→bWFpbEBleGFtcGxlLmNvbTpwYXNzd29yZA==
-		ddnsclient.println("User-Agent: username Arduino Client/0.0 mail@example.com");
+		strbuf = "GET /nic/update?hostname=" + ddnsMySiteName + String(" HTTP/1.0");
+		ddnsclient.println(strbuf);
+
+		strbuf = "Host: " + ddnsHostName;
+		ddnsclient.println(strbuf);
+
+		strbuf = "Authorization: Basic " + ddnsAuthCode;
+		ddnsclient.println(strbuf);
+
+		strbuf = "User-Agent: username Arduino Client/0.0 " + ddnsMailAddress;
+		ddnsclient.println(strbuf);
+
 		ddnsclient.println();
 
 		//Wait for response
 		delay(5000);
-		//Serial.print("Characters available: ");
+		// 応答内容を表示
 		Serial.println(ddnsclient.available());
 
 		while (ddnsclient.available() > 0)
