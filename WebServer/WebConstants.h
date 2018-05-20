@@ -1,12 +1,12 @@
 
 const String ddnsMySiteName = "example.com";
 const String ddnsHostName	= "dynupdate.no-ip.com";
-const String ddnsAuthCode = "bWFpbEBleGFtcGxlLmNvbTpwYXNzd29yZA==";	//BASE64に変換 mail@example.com:password→bWFpbEBleGFtcGxlLmNvbTpwYXNzd29yZA==
+const String ddnsAuthCode = "bWFpbEBleGFtcGxlLmNvbTpwYXNzd29yZA==";	//BASE64縺ｫ螟画鋤 mail@example.com:password竊鍛WFpbEBleGFtcGxlLmNvbTpwYXNzd29yZA==
 const String ddnsMailAddress	= "mail@example.com";
 
-// Ethernetアクセス用
+// Ethernet繧｢繧ｯ繧ｻ繧ｹ逕ｨ
 byte mac[] = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00	// EthernetシールドのMACアドレス
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00	// Ethernet繧ｷ繝ｼ繝ｫ繝峨�ｮMAC繧｢繝峨Ξ繧ｹ
 };
-IPAddress ip(192, 168, 11, 99);			// EthernetシールドのローカルIPアドレス
+IPAddress ip(192, 168, 11, 99);			// Ethernet繧ｷ繝ｼ繝ｫ繝峨�ｮ繝ｭ繝ｼ繧ｫ繝ｫIP繧｢繝峨Ξ繧ｹ
 
