@@ -10,7 +10,6 @@ const String ddnsRequestStrs[] = {  // リクエストメッセージ
 	"PASS " + ddnsAuthPass
 };
 
-
 // Ethernetアクセス用
 byte mac[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00	// EthernetシールドのMACアドレス
