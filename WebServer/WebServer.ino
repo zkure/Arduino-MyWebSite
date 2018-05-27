@@ -22,45 +22,45 @@
 #include "WebConstants.h"
 
 // Ethernetアクセス用
-EthernetServer server(80);				// ポート80番(HTTP)
+EthernetServer server(80);  // ポート80番(HTTP)
 
 // SDカードアクセス用
-File myFile;							
-const int maxlen = 64;					// 一度にファイルから読むbyte数
-char buffer[maxlen+1];					// サイズは終端文字を残すために1バイト余分に取る
+File myFile;
+const int maxlen = 64;  // 一度にファイルから読むbyte数
+char buffer[maxlen+1];  // サイズは終端文字を残すために1バイト余分に取る
 
 // DDNSサービスアクセス用
-unsigned long ddnsCheckedTime = 0;					// DDNS前回確認時
-unsigned long ddnsCheckTimer = 0;					// DDNS確認タイマー
-const unsigned long ddnsInterval = (1000*60*60);	// DDNS接続周期(1時間)
-void ddns(void);									// DDNS確認リクエスト送信
-
+unsigned long ddnsCheckedTime = 0;  // DDNS前回確認時
+unsigned long ddnsCheckTimer = 0;   // DDNS確認タイマー
+const unsigned long ddnsInterval = (1000*60*60);    // DDNS接続周期(msec)
+void ddns(void);    // DDNS確認リクエスト送信
 
 void setup() {
-  // Open serial communications and wait for port to open:
+  // シリアルポートオープン:
   Serial.begin(9600);
   while (!Serial) {
-	; // wait for serial port to connect. Needed for Leonardo only
+	; // シリアルポートオープン待ち(Leonardoボード使用の場合)
   }
 
-  //初期化のための待ち時間:
+  //初期化待ち:
   delay(1000);
 
-  Serial.print("SDカード初期化...");
+  Serial.print("SD Card Initialize...");
   if (!SD.begin(4)) {
 	  Serial.println("failed!");
 	  return;
   }
   Serial.println("done.");
-
-
-  // start the Ethernet connection and the server:
+  
+  // Ethernet接続とサーバー開始:
   Ethernet.begin(mac, ip);
   server.begin();
   // サーバーのローカルIP
   Serial.println(Ethernet.localIP());
+  
+  // DDNS確認リクエスト送信
+  ddns();
 }
-
 
 void loop() {
   // 受信待受
@@ -79,16 +79,14 @@ void loop() {
 		  client.println("Connection: close");  // この応答の完了後に接続を閉じる
 		  client.println();
 		  // HTTPレスポンスヘッダここまで
-
-
-
+		  
 		  // ここからWebページ部分
-
+		  Serial.println("opening Index.htm");
 		  // 読み出しモードで開く:
-		  myFile = SD.open("Index.htm");	  // ファイル名は8.3形式
+		  myFile = SD.open("Index.htm");    // ファイル名は8.3形式
 		  if (myFile) {
 			  // ファイルから読み出すデータが無くなるまで読む:
-			  while (myFile.available()) {				  				  
+			  while (myFile.available()) {
 				  memset(buffer, 0x00, sizeof(buffer));
 
 				  int length = myFile.available();
@@ -97,7 +95,7 @@ void loop() {
 				  }
 				  myFile.read(buffer, length);          
 
-				  client.print(buffer);        // 送信する
+				  client.print(buffer); // 送信する
 			  }
 			  // ファイルを閉じる:
 			  myFile.close();
@@ -106,8 +104,6 @@ void loop() {
 			  // ファイルオープンに失敗
 			  Serial.println("error opening Index.htm");
 		  }
-
-
 		  break;
 		}
 	  }
@@ -116,68 +112,51 @@ void loop() {
 	delay(1);
 	// 接続を閉じる:
 	client.stop();
-	//Serial.println("client disconnected");
+	Serial.println("client disconnected");
   }
-
 
   // DDNS確認周期
   ddnsCheckTimer = millis() - ddnsCheckedTime;
   if ( (abs(ddnsCheckTimer) > ddnsInterval) )
   {
-	  Serial.println();
 	  ddnsCheckedTime = millis();
 	  ddns();
   }
-
-
 }
 
 // DDNS確認リクエスト送信
-void ddns() {
-	Serial.println("DDNS...");
-	//Give time to initilize:
-	delay(1000);
-
+void ddns() {	
 	EthernetClient ddnsclient;
 
-	// start the Ethernet
-	Ethernet.begin(mac, ip);
-
-	//Give time to initilize:
-	delay(1000);
-
-	if (ddnsclient.connect(ddnsHostName.c_str(), 80)) {
-		//Serial.println("Connected to noip");
+	Serial.println("DDNS...");
+	
+	// DDNSサービス接続
+	if (ddnsclient.connect(ddnsHostName.c_str(), ddnsPort)) {
+		Serial.println("Connected...");
 		String strbuf;
 
-		strbuf = "GET /nic/update?hostname=" + ddnsMySiteName + String(" HTTP/1.0");
-		ddnsclient.println(strbuf);
-
-		strbuf = "Host: " + ddnsHostName;
-		ddnsclient.println(strbuf);
-
-		strbuf = "Authorization: Basic " + ddnsAuthCode;
-		ddnsclient.println(strbuf);
-
-		strbuf = "User-Agent: username Arduino Client/0.0 " + ddnsMailAddress;
-		ddnsclient.println(strbuf);
-
+		// DDNSリクエスト送信
+		for (int i=0; i<ArrayCnt(ddnsRequestStrs); i++)
+		{
+			strbuf = ddnsRequestStrs[i];
+			ddnsclient.println(strbuf);
+			Serial.println(strbuf);
+		}		
 		ddnsclient.println();
-
-		//Wait for response
+		
+		// 応答待ち
 		delay(5000);
 		// 応答内容を表示
-		Serial.println(ddnsclient.available());
-
 		while (ddnsclient.available() > 0)
 		{
 			char read_char = ddnsclient.read();
 			Serial.print(read_char);
 		}
+		Serial.println("DDNS done.");
 	}
 	else {
-		// kf you didn't get a connection to the server:
-		//Serial.println("connection failed");
+		// DDNSサーバー接続失敗:
+		Serial.println("DDNS failed!");
 	}
 
 }
