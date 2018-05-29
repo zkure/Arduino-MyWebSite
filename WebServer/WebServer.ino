@@ -39,7 +39,7 @@ void setup() {
   // シリアルポートオープン:
   Serial.begin(9600);
   while (!Serial) {
-	; // シリアルポートオープン待ち(Leonardoボード使用の場合)
+    ; // シリアルポートオープン待ち(Leonardoボード使用の場合)
   }
 
   //初期化待ち:
@@ -47,8 +47,8 @@ void setup() {
 
   Serial.print("SD Card Initialize...");
   if (!SD.begin(4)) {
-	  Serial.println("failed!");
-	  return;
+      Serial.println("failed!");
+      return;
   }
   Serial.println("done.");
   
@@ -66,97 +66,98 @@ void loop() {
   // 受信待受
   EthernetClient client = server.available();
   if (client) {
-	while (client.connected()) {
-	  if (client.available()) {
-		char c = client.read();
-		Serial.write(c);	// リクエストの内容
+    while (client.connected()) {
+      if (client.available()) {
+        char c = client.read();
+        Serial.write(c);	// リクエストの内容
 
-		// リクエストの終端(改行文字)
-		if (c == '\n') {
-		  // ここからHTTPレスポンスヘッダ
-		  client.println("HTTP/1.1 200 OK");
-		  client.println("Content-Type: text/html");
-		  client.println("Connection: close");  // この応答の完了後に接続を閉じる
-		  client.println();
-		  // HTTPレスポンスヘッダここまで
-		  
-		  // ここからWebページ部分
-		  Serial.println("opening Index.htm");
-		  // 読み出しモードで開く:
-		  myFile = SD.open("Index.htm");    // ファイル名は8.3形式
-		  if (myFile) {
-			  // ファイルから読み出すデータが無くなるまで読む:
-			  while (myFile.available()) {
-				  memset(buffer, 0x00, sizeof(buffer));
+        // リクエストの終端(改行文字)
+        if (c == '\n') {
+          // ここからHTTPレスポンスヘッダ
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");
+          client.println("Connection: close");  // この応答の完了後に接続を閉じる
+          client.println();
+          // HTTPレスポンスヘッダここまで
+          
+          // ここからWebページ部分
+          Serial.println("opening Index.htm");
+          // 読み出しモードで開く:
+          myFile = SD.open("Index.htm");    // ファイル名は8.3形式
+          if (myFile) {
+              // ファイルから読み出すデータが無くなるまで読む:
+              while (myFile.available()) {
+                  memset(buffer, 0x00, sizeof(buffer));
 
-				  int length = myFile.available();
-				  if (length > maxlen) {
-					  length = maxlen;
-				  }
-				  myFile.read(buffer, length);          
+                  int length = myFile.available();
+                  if (length > maxlen) {
+                      length = maxlen;
+                  }
+                  myFile.read(buffer, length);          
 
-				  client.print(buffer); // 送信する
-			  }
-			  // ファイルを閉じる:
-			  myFile.close();
-		  }
-		  else {
-			  // ファイルオープンに失敗
-			  Serial.println("error opening Index.htm");
-		  }
-		  break;
-		}
-	  }
-	}
-	// ブラウザにデータ受信する時間を与える
-	delay(1);
-	// 接続を閉じる:
-	client.stop();
-	Serial.println("client disconnected");
+                  client.print(buffer); // 送信する
+              }
+              // ファイルを閉じる:
+              myFile.close();
+          }
+          else {
+              // ファイルオープンに失敗
+              Serial.println("error opening Index.htm");
+          }
+          break;
+        }
+      }
+    }
+    // ブラウザにデータ受信する時間を与える
+    delay(1);
+    // 接続を閉じる:
+    client.stop();
+    Serial.println("client disconnected");
   }
 
   // DDNS確認周期
   ddnsCheckTimer = millis() - ddnsCheckedTime;
   if ( (abs(ddnsCheckTimer) > ddnsInterval) )
   {
-	  ddnsCheckedTime = millis();
-	  ddns();
+      ddnsCheckedTime = millis();
+      ddns();
   }
 }
 
 // DDNS確認リクエスト送信
-void ddns() {	
-	EthernetClient ddnsclient;
+void ddns() {
+    EthernetClient ddnsclient;
 
-	Serial.println("DDNS...");
-	
-	// DDNSサービス接続
-	if (ddnsclient.connect(ddnsHostName.c_str(), ddnsPort)) {
-		Serial.println("Connected...");
-		String strbuf;
+    Serial.println("DDNS...");
+    
+    // DDNSサービス接続
+    Serial.println(ddnsHostName.c_str());
+    if (ddnsclient.connect(ddnsHostName.c_str(), ddnsPort)) {
+        Serial.println("Connected...");
+        String strbuf;
 
-		// DDNSリクエスト送信
-		for (int i=0; i<ArrayCnt(ddnsRequestStrs); i++)
-		{
-			strbuf = ddnsRequestStrs[i];
-			ddnsclient.println(strbuf);
-			Serial.println(strbuf);
-		}		
-		ddnsclient.println();
-		
-		// 応答待ち
-		delay(5000);
-		// 応答内容を表示
-		while (ddnsclient.available() > 0)
-		{
-			char read_char = ddnsclient.read();
-			Serial.print(read_char);
-		}
-		Serial.println("DDNS done.");
-	}
-	else {
-		// DDNSサーバー接続失敗:
-		Serial.println("DDNS failed!");
-	}
+        // DDNSリクエスト送信
+        for (int i=0; i<ArrayCnt(ddnsRequestStrs); i++)
+        {
+            strbuf = ddnsRequestStrs[i];
+            ddnsclient.println(strbuf);
+            Serial.println(strbuf);
+        }
+        ddnsclient.println();
+        
+        // 応答待ち
+        delay(5000);
+        // 応答内容を表示
+        while (ddnsclient.available() > 0)
+        {
+            char read_char = ddnsclient.read();
+            Serial.print(read_char);
+        }
+        Serial.println("DDNS done.");
+    }
+    else {
+        // DDNSサーバー接続失敗:
+        Serial.println("DDNS failed!");
+    }
 
 }
