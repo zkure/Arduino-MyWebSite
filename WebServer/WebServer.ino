@@ -20,10 +20,14 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Ethernet.h>
+#include <SimpleFtpServer.h>
 #include "WebConstants.h"
 
 // Ethernetアクセス用
 EthernetServer server(80);  // ポート80番(HTTP)
+
+// FTPアクセス用
+FtpServer ftpSrv;
 
 // SDカードアクセス用
 File myFile;
@@ -31,11 +35,11 @@ const int maxlen = 64;  // 一度にファイルから読むbyte数
 char buffer[maxlen+1];  // サイズは終端文字を残すために1バイト余分に取る
 
 // DDNSサービスアクセス用
-unsigned long ddnsCheckCount = 0;   // DDNS確認タイマー
-const unsigned long ddnsIntervalNum  = 3600;   // DDNS接続周期
-const unsigned long TimerInterval = 1000;   // 周期処理周期(msec) 
+unsigned long ddnsCheckCount = 0;               // DDNS確認タイマー
+const unsigned long ddnsIntervalNum  = 3600;    // DDNS接続周期
+const unsigned long TimerInterval = 1000;       // 周期処理周期(msec) 
 
-void ddns(void);    // DDNS確認リクエスト送信
+void ddns(void);        // DDNS確認リクエスト送信
 void timerproc(void);   // 周期処理
 
 void setup() {
@@ -61,6 +65,9 @@ void setup() {
   // サーバーのローカルIP
   Serial.println(Ethernet.localIP());
   
+  // FTPサーバー開始
+  ftpSrv.begin(ftpAuthUser.c_str(), ftpAuthPass.c_str());
+  
   // DDNS確認リクエスト送信
   ddns();
 
@@ -73,6 +80,9 @@ void setup() {
 }
 
 void loop() {
+  // FTP待受
+  ftpSrv.handleFTP();
+
   // 受信待受
   EthernetClient client = server.available();
   if (client) {
