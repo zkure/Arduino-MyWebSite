@@ -16,6 +16,7 @@
 
  */
 
+#include <MsTimer2.h>
 #include <SPI.h>
 #include <SD.h>
 #include <Ethernet.h>
@@ -30,10 +31,12 @@ const int maxlen = 64;  // 一度にファイルから読むbyte数
 char buffer[maxlen+1];  // サイズは終端文字を残すために1バイト余分に取る
 
 // DDNSサービスアクセス用
-unsigned long ddnsCheckedTime = 0;  // DDNS前回確認時
-unsigned long ddnsCheckTimer = 0;   // DDNS確認タイマー
-const unsigned long ddnsInterval = (1000*60*60);    // DDNS接続周期(msec)
+unsigned long ddnsCheckCount = 0;   // DDNS確認タイマー
+const unsigned long ddnsIntervalNum  = 3600;   // DDNS接続周期
+const unsigned long TimerInterval = 1000;   // 周期処理周期(msec) 
+
 void ddns(void);    // DDNS確認リクエスト送信
+void timerproc(void);   // 周期処理
 
 void setup() {
   // シリアルポートオープン:
@@ -60,12 +63,20 @@ void setup() {
   
   // DDNS確認リクエスト送信
   ddns();
+
+  // 周期処理タイマ初期化
+  MsTimer2::set(TimerInterval, timerproc);
+  MsTimer2::start();
+
+  // LEDピン初期化
+  pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
   // 受信待受
   EthernetClient client = server.available();
   if (client) {
+    Serial.println("client connecting...");
     while (client.connected()) {
       if (client.available()) {
         char c = client.read();
@@ -116,12 +127,19 @@ void loop() {
   }
 
   // DDNS確認周期
-  ddnsCheckTimer = millis() - ddnsCheckedTime;
-  if ( (abs(ddnsCheckTimer) > ddnsInterval) )
+  if ((ddnsCheckCount > ddnsIntervalNum))
   {
-      ddnsCheckedTime = millis();
       ddns();
+      ddnsCheckCount = 0;
   }
+}
+
+// 周期処理
+void timerproc() {
+    // DDNS確認周期   
+    ddnsCheckCount++;
+    // 動作確認
+    digitalWrite(LED_BUILTIN, (ddnsCheckCount%2));
 }
 
 // DDNS確認リクエスト送信
@@ -133,7 +151,7 @@ void ddns() {
     // DDNSサービス接続
     Serial.println(ddnsHostName.c_str());
     if (ddnsclient.connect(ddnsHostName.c_str(), ddnsPort)) {
-        Serial.println("Connected...");
+        Serial.println("Connecting...");
         String strbuf;
 
         // DDNSリクエスト送信
