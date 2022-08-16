@@ -20,7 +20,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Ethernet.h>
-#include <SimpleFtpServer.h>
+#include <SimpleFTPServer.h>
 #include "WebConstants.h"
 
 // Ethernetアクセス用
